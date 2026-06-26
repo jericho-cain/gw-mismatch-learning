@@ -1,0 +1,27 @@
+seed: 1234
+gw_data:
+  cache_path: data/processed/tiny_waveform_mismatch.h5
+  overwrite: false
+  num_waveforms: 32
+  approximant: IMRPhenomD
+  mass_1_range: [20.0, 40.0]
+  mass_2_range: [10.0, 30.0]
+  delta_f: 0.0625
+  f_lower: 20.0
+  f_final: 512.0
+  psd: aLIGOZeroDetHighPower
+pairs:
+  num_pairs: 1024
+model:
+  input_dim: 5
+  embedding_dim: 4
+  hidden_dims: [32, 16]
+training:
+  epochs: 5
+  batch_size: 64
+  learning_rate: 0.001
+evaluation:
+  top_k: 5
+outputs:
+  plot_dir: outputs/waveform_bank_tiny
+  save_plots: true

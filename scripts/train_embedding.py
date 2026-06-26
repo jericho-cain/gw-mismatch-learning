@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from gw_mismatch_learning.config import load_config
 from gw_mismatch_learning.datasets.distance_regression import DistanceRegressionDataset
+from gw_mismatch_learning.datasets.gw import load_or_create_gw_mismatch_dataset
 from gw_mismatch_learning.datasets.pairs import sample_pairs
 from gw_mismatch_learning.datasets.synthetic import make_synthetic_distance_dataset
 from gw_mismatch_learning.evaluation.geometry import (
@@ -24,19 +25,26 @@ from gw_mismatch_learning.utils.io import ensure_dir
 from gw_mismatch_learning.utils.seeds import set_seed
 
 
-def run(config_path: str | Path) -> dict[str, float]:
-    config = load_config(config_path)
-    seed = int(config.get("seed", 1234))
-    set_seed(seed)
+def load_experiment_dataset(config: dict, seed: int):
+    if "gw_data" in config:
+        return load_or_create_gw_mismatch_dataset(config["gw_data"], seed=seed)
 
     data_cfg = config.get("synthetic_data", config.get("mock_data", {}))
-    dataset = make_synthetic_distance_dataset(
+    return make_synthetic_distance_dataset(
         num_samples=int(data_cfg["num_samples"]),
         input_dim=int(data_cfg["input_dim"]),
         metric=data_cfg.get("metric", "cosine"),
         noise=float(data_cfg.get("noise", 0.0)),
         seed=seed,
     )
+
+
+def run(config_path: str | Path) -> dict[str, float]:
+    config = load_config(config_path)
+    seed = int(config.get("seed", 1234))
+    set_seed(seed)
+
+    dataset = load_experiment_dataset(config, seed=seed)
 
     pair_cfg = config["pairs"]
     pairs = sample_pairs(dataset.features, dataset.distance, int(pair_cfg["num_pairs"]), seed=seed)

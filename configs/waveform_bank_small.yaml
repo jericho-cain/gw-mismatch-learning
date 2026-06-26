@@ -1,8 +1,8 @@
 seed: 1234
 gw_data:
-  cache_path: data/processed/tiny_waveform_mismatch.h5
+  cache_path: data/processed/small_waveform_mismatch.h5
   overwrite: false
-  num_waveforms: 32
+  num_waveforms: 256
   approximant: IMRPhenomD
   mass_1_range: [20.0, 40.0]
   mass_2_range: [10.0, 30.0]
@@ -10,20 +10,23 @@ gw_data:
   f_lower: 20.0
   f_final: 512.0
   psd: aLIGOZeroDetHighPower
+  max_estimated_runtime_minutes: 30.0
+  benchmark_pairs: 128
+  show_progress: true
 pairs:
-  num_pairs: 1024
+  num_pairs: 8192
 model:
   input_dim: 5
   embedding_dim: 4
   hidden_dims: [32, 16]
 training:
-  epochs: 5
-  batch_size: 64
+  epochs: 10
+  batch_size: 128
   learning_rate: 0.001
 evaluation:
   top_k: 5
-  k_values: [5, 10]
+  k_values: [5, 10, 20]
 outputs:
-  plot_dir: outputs/waveform_bank_tiny
+  plot_dir: outputs/waveform_bank_small
   save_plots: true
   save_metrics: true

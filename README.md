@@ -26,13 +26,23 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-For GW waveform generation and overlap calculations, install the optional GW extras if your platform supports them:
+For GW waveform generation and overlap calculations, use an isolated environment. PyCBC/LALSuite pin parts of the scientific stack, including `scipy<1.17`, and may conflict with unrelated packages installed in a shared user Python.
 
 ```bash
+python -m venv .venv-gw
+source .venv-gw/bin/activate
 pip install -e ".[gw]"
 ```
 
-PyCBC and LALSuite installation can be platform-dependent, so the core package and smoke tests avoid importing them unless a GW-specific function is called.
+The requirements-file equivalent is:
+
+```bash
+pip install -r requirements-gw.txt
+```
+
+PyCBC and LALSuite installation can be platform-dependent, so the core package and synthetic smoke tests avoid importing them unless a GW-specific function is called.
+
+If `pip check` reports an unrelated `pyopenssl`/`cryptography` conflict after installing GW extras into a shared user Python, create a fresh virtual environment for this project. The repository does not use those packages directly; the conflict comes from mixing GW dependencies with other packages already present in the Python environment.
 
 ## Smoke test
 

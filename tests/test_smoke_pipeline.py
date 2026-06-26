@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import yaml
@@ -30,3 +31,6 @@ def test_complete_synthetic_smoke_pipeline_generates_metrics_and_plots(tmp_path:
     assert report["candidate_reduction_factor"] == 8.0
     assert (tmp_path / "distance_scatter.png").exists()
     assert (tmp_path / "retrieval_heatmap.png").exists()
+    metrics = json.loads((tmp_path / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["config_path"] == str(config_path)
+    assert "recall_at_3" in metrics["metrics"]

@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pytest
 from scripts.train_embedding import run
@@ -15,7 +17,11 @@ def test_distance_matrix_dataset_round_trip(tmp_path) -> None:
     dataset = DistanceMatrixDataset(
         features=np.array([[0.0, 1.0], [1.0, 0.0]], dtype=np.float32),
         distance=np.array([[0.0, 0.2], [0.2, 0.0]], dtype=np.float32),
-        metadata={"mass_1": np.array([30.0, 35.0], dtype=np.float32)},
+        metadata={
+            "mass_1": np.array([30.0, 35.0], dtype=np.float32),
+            "approximant": "IMRPhenomD",
+            "f_lower": 20.0,
+        },
     )
     path = tmp_path / "dataset.h5"
 
@@ -25,6 +31,8 @@ def test_distance_matrix_dataset_round_trip(tmp_path) -> None:
     np.testing.assert_allclose(loaded.features, dataset.features)
     np.testing.assert_allclose(loaded.distance, dataset.distance)
     np.testing.assert_allclose(loaded.metadata["mass_1"], dataset.metadata["mass_1"])
+    assert loaded.metadata["approximant"] == "IMRPhenomD"
+    assert loaded.metadata["f_lower"] == 20.0
 
 
 def test_load_or_create_uses_cache_without_pycbc(tmp_path) -> None:
@@ -55,8 +63,16 @@ def test_training_pipeline_accepts_cached_gw_distance_dataset(tmp_path) -> None:
     cache_path = tmp_path / "gw_cache.h5"
     save_distance_matrix_dataset(
         cache_path,
-        DistanceMatrixDataset(features=features, distance=distance, metadata={}),
+        DistanceMatrixDataset(
+            features=features,
+            distance=distance,
+            metadata={
+                "mass_1": np.array([20.0, 21.0, 30.0, 31.0, 40.0, 41.0], dtype=np.float32),
+                "mass_2": np.array([10.0, 10.5, 15.0, 15.5, 20.0, 20.5], dtype=np.float32),
+            },
+        ),
     )
+    output_dir = tmp_path / "outputs"
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
         "\n".join(
@@ -78,6 +94,7 @@ def test_training_pipeline_accepts_cached_gw_distance_dataset(tmp_path) -> None:
                 "  top_k: 2",
                 "outputs:",
                 "  save_plots: false",
+                f"  plot_dir: {output_dir}",
             ]
         ),
         encoding="utf-8",
@@ -85,4 +102,8 @@ def test_training_pipeline_accepts_cached_gw_distance_dataset(tmp_path) -> None:
 
     report = run(config_path)
     assert "recall_at_2" in report
+    assert "physical_parameter_recall_at_2" in report
     assert report["candidate_reduction_factor"] == 3.0
+    metrics = json.loads((output_dir / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["data_file_path"] == str(cache_path)
+    assert "physical_parameter_recall_at_2" in metrics["metrics"]

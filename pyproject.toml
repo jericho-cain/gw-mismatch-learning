@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Jericho Cain" }]
 dependencies = [
   "numpy",
-  "scipy",
+  "scipy>=1.16,<1.17",
   "pandas",
   "h5py",
   "pyyaml",

@@ -1,5 +1,5 @@
 numpy
-scipy
+scipy>=1.16,<1.17
 pandas
 h5py
 pyyaml
@@ -9,7 +9,7 @@ scikit-learn
 torch
 torchmetrics
 
-# Optional GW dependencies. Install when your platform supports them:
+# Optional GW dependencies. Prefer a dedicated virtual environment.
 # pycbc
 # lalsuite
 

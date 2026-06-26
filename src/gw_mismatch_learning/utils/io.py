@@ -29,3 +29,8 @@ def save_arrays_hdf5(
 def load_arrays_hdf5(path: str | Path) -> dict[str, np.ndarray]:
     with h5py.File(path, "r") as handle:
         return {name: dataset[()] for name, dataset in handle.items()}
+
+
+def load_hdf5_attrs(path: str | Path) -> dict[str, Any]:
+    with h5py.File(path, "r") as handle:
+        return dict(handle.attrs)

@@ -10,6 +10,14 @@ Matched filtering defines waveform similarity through the noise-weighted overlap
 
 The learned geometry is intended to support nearest-neighbor retrieval, candidate reduction, and hierarchical matched-filter search. Exact matched filtering remains the final verification step.
 
+## Current status
+
+The repository has completed its first real-waveform validation milestone. A learned latent representation has been trained and evaluated on nonspinning `IMRPhenomD` waveform banks using PyCBC/LALSuite matched-filter mismatch as the ground-truth distance.
+
+In the Phase 3 validation sweep, learned latent nearest-neighbor retrieval outperformed naive Euclidean retrieval in raw `(m1, m2)` space across five random seeds, bank sizes 128 through 1024, and retrieval metrics at `K = 5, 10, 20`. This demonstrates neighborhood preservation for the tested compact nonspinning banks only. It does not establish search acceleration, production-scale performance, or generalization to spin, precession, eccentricity, other waveform families, or broader parameter spaces.
+
+See `docs/milestones/phase3.md` and `docs/phase3_validation_results.md` for the frozen results snapshot and reproducibility notes.
+
 ## What this repo is not
 
 - Not a replacement for matched filtering.

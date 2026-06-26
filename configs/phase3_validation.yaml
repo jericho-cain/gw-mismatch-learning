@@ -1,0 +1,36 @@
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/phase3_validation
+primary_k: 5
+plot_metrics:
+  correlation: spearman
+  recall: learned_recall_at_5
+  baseline_recall: physical_parameter_recall_at_5
+  bank_size: learned_recall_at_5
+studies:
+  seed:
+    enabled: true
+    seeds: [101, 202, 303, 404, 505]
+  latent_dim:
+    enabled: true
+    seed: 1234
+    values: [2, 4, 8, 16, 32, 64]
+  architecture:
+    enabled: true
+    seed: 1234
+    variants:
+      - name: narrow_shallow
+        hidden_dims: [16]
+      - name: baseline
+        hidden_dims: [32, 16]
+      - name: wide
+        hidden_dims: [64, 32]
+      - name: deeper
+        hidden_dims: [64, 32, 16]
+  epochs:
+    enabled: true
+    seed: 1234
+    values: [3, 5, 10, 20]
+  bank_size:
+    enabled: true
+    seed: 1234
+    values: [128, 256, 512, 1024]

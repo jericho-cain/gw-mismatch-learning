@@ -1,0 +1,5 @@
+seed: 1234
+paths:
+  data_dir: data
+  model_dir: models
+  output_dir: outputs

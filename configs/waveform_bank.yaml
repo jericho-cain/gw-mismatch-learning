@@ -1,0 +1,11 @@
+seed: 1234
+waveform:
+  approximant: IMRPhenomD
+  f_lower: 20.0
+  delta_t: 0.000244140625
+bank:
+  num_waveforms: 16
+  mass_1_range: [20.0, 40.0]
+  mass_2_range: [10.0, 30.0]
+output:
+  path: data/processed/waveform_bank.h5

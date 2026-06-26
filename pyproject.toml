@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gw-mismatch-learning"
+version = "0.1.0"
+description = "Learn latent representations of matched-filter mismatch geometry for gravitational-wave waveforms."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Jericho Cain" }]
+dependencies = [
+  "numpy",
+  "scipy",
+  "pandas",
+  "h5py",
+  "pyyaml",
+  "tqdm",
+  "matplotlib",
+  "scikit-learn",
+  "torch",
+  "torchmetrics",
+]
+
+[project.optional-dependencies]
+gw = ["pycbc", "lalsuite"]
+retrieval = ["faiss-cpu", "hnswlib", "annoy"]
+dev = ["pytest", "ruff", "black", "mypy", "ipykernel", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+ignore_missing_imports = true

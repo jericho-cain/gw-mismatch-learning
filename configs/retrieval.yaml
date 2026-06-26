@@ -1,0 +1,6 @@
+seed: 1234
+retrieval:
+  metric: euclidean
+  top_k: 10
+evaluation:
+  match_tolerance: 0.03

@@ -1,0 +1,19 @@
+numpy
+scipy
+pandas
+h5py
+pyyaml
+tqdm
+matplotlib
+scikit-learn
+torch
+torchmetrics
+
+# Optional GW dependencies. Install when your platform supports them:
+# pycbc
+# lalsuite
+
+# Optional retrieval/indexing dependencies:
+# faiss-cpu
+# hnswlib
+# annoy

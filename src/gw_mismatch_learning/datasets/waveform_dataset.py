@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from gw_mismatch_learning.datasets.synthetic import make_synthetic_distance_dataset
+
 
 @dataclass(frozen=True)
 class MockWaveformDataset:
@@ -19,14 +21,11 @@ def make_mock_waveform_dataset(
     noise: float = 0.01,
     seed: int | None = None,
 ) -> MockWaveformDataset:
-    rng = np.random.default_rng(seed)
-    features = rng.normal(size=(num_samples, input_dim)).astype(np.float32)
-    normalized = features / np.linalg.norm(features, axis=1, keepdims=True).clip(min=1e-8)
-    cosine_similarity = np.clip(normalized @ normalized.T, -1.0, 1.0)
-    mismatch = 0.5 * (1.0 - cosine_similarity)
-    if noise > 0:
-        jitter = rng.normal(scale=noise, size=mismatch.shape)
-        mismatch = np.clip(mismatch + jitter, 0.0, None)
-        mismatch = 0.5 * (mismatch + mismatch.T)
-        np.fill_diagonal(mismatch, 0.0)
-    return MockWaveformDataset(features=features, mismatch=mismatch.astype(np.float32))
+    synthetic = make_synthetic_distance_dataset(
+        num_samples=num_samples,
+        input_dim=input_dim,
+        metric="cosine",
+        noise=noise,
+        seed=seed,
+    )
+    return MockWaveformDataset(features=synthetic.features, mismatch=synthetic.distance)

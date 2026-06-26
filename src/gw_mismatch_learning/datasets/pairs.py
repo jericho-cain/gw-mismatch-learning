@@ -12,6 +12,8 @@ class PairBatch:
     left: np.ndarray
     right: np.ndarray
     distance: np.ndarray
+    left_index: np.ndarray
+    right_index: np.ndarray
 
 
 def sample_pairs(
@@ -30,6 +32,8 @@ def sample_pairs(
         left=features[left_idx],
         right=features[right_idx],
         distance=distance_matrix[left_idx, right_idx].astype(np.float32),
+        left_index=left_idx.astype(np.int64),
+        right_index=right_idx.astype(np.int64),
     )
 
 

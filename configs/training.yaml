@@ -1,13 +1,14 @@
 seed: 1234
-mock_data:
-  num_samples: 64
-  input_dim: 16
+synthetic_data:
+  num_samples: 96
+  input_dim: 128
+  metric: cosine
   noise: 0.01
 pairs:
-  num_pairs: 512
+  num_pairs: 1024
 model:
-  input_dim: 16
-  embedding_dim: 4
+  input_dim: 128
+  embedding_dim: 8
   hidden_dims: [64, 32]
 training:
   epochs: 5
@@ -15,3 +16,6 @@ training:
   learning_rate: 0.001
 evaluation:
   top_k: 5
+outputs:
+  plot_dir: outputs/smoke
+  save_plots: true

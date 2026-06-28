@@ -52,6 +52,8 @@ def main() -> None:
 def build_runs(sweep_config: dict[str, Any], selected_studies: set[str]) -> list[dict[str, Any]]:
     base_config_path = Path(sweep_config["base_config"])
     base_config = load_config(base_config_path)
+    if "distance_target" in sweep_config:
+        base_config["distance_target"] = str(sweep_config["distance_target"])
     studies = sweep_config.get("studies", {})
     runs: list[dict[str, Any]] = []
 
@@ -148,10 +150,12 @@ def execute_runs(runs: Iterable[dict[str, Any]], output_dir: Path) -> list[dict[
         metrics = run_training(config_path)
         runtime_seconds = time.perf_counter() - start
         metrics["runtime_seconds"] = runtime_seconds
+        metrics["distance_target"] = str(config.get("distance_target", "mismatch"))
 
         record = {
             "study": run_spec["study"],
             "run_id": run_spec["run_id"],
+            "distance_target": str(config.get("distance_target", "mismatch")),
             **run_spec["parameters"],
             **metrics,
         }
@@ -163,6 +167,7 @@ def execute_runs(runs: Iterable[dict[str, Any]], output_dir: Path) -> list[dict[
                 {
                     "study": run_spec["study"],
                     "run_id": run_spec["run_id"],
+                    "distance_target": str(config.get("distance_target", "mismatch")),
                     "parameters": run_spec["parameters"],
                     "runtime_seconds": runtime_seconds,
                     "metrics": metrics,
@@ -187,7 +192,13 @@ def write_records(path: Path, records: list[dict[str, Any]]) -> None:
 
 def write_summary(path: Path, records: list[dict[str, Any]]) -> None:
     summary = summarize_records(records)
-    path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    payload = {
+        "distance_targets": sorted(
+            {str(record.get("distance_target", "mismatch")) for record in records}
+        ),
+        "studies": summary,
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def write_summary_csv(path: Path, records: list[dict[str, Any]]) -> None:
@@ -195,7 +206,14 @@ def write_summary_csv(path: Path, records: list[dict[str, Any]]) -> None:
     rows = []
     for study, metrics in summary.items():
         for metric, stats in metrics.items():
-            rows.append({"study": study, "metric": metric, **stats})
+            rows.append(
+                {
+                    "study": study,
+                    "distance_target": _distance_target_for_study(records, study),
+                    "metric": metric,
+                    **stats,
+                }
+            )
     if not rows:
         return
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -230,6 +248,17 @@ def summarize_records(records: list[dict[str, Any]]) -> dict[str, dict[str, dict
                     "std": variance**0.5,
                 }
     return summary
+
+
+def _distance_target_for_study(records: list[dict[str, Any]], study: str) -> str:
+    values = sorted(
+        {
+            str(record.get("distance_target", "mismatch"))
+            for record in records
+            if record.get("study") == study
+        }
+    )
+    return ",".join(values)
 
 
 def make_plots(

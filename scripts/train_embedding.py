@@ -19,6 +19,7 @@ from gw_mismatch_learning.evaluation.geometry import (
     distance_error_summary,
     pairwise_euclidean,
 )
+from gw_mismatch_learning.evaluation.metric_properties import chordal_from_mismatch
 from gw_mismatch_learning.evaluation.plots import plot_distance_scatter, plot_retrieval_rank_heatmap
 from gw_mismatch_learning.evaluation.retrieval import retrieval_report, true_neighbors_from_distance
 from gw_mismatch_learning.models.encoders import MLPEncoder
@@ -86,10 +87,26 @@ def add_retrieval_metrics(
             report.update(metrics)
 
 
+def distance_target_from_config(config: dict) -> str:
+    target = str(config.get("distance_target", "mismatch"))
+    if target not in {"mismatch", "chordal"}:
+        raise ValueError("distance_target must be 'mismatch' or 'chordal'")
+    return target
+
+
+def transform_distance_target(distance: np.ndarray, distance_target: str) -> np.ndarray:
+    if distance_target == "mismatch":
+        return distance
+    if distance_target == "chordal":
+        return chordal_from_mismatch(distance).astype(np.float32)
+    raise ValueError("distance_target must be 'mismatch' or 'chordal'")
+
+
 def save_metrics_json(
-    report: dict[str, float],
+    report: dict[str, float | str],
     config_path: str | Path,
     data_file_path: str | None,
+    distance_target: str,
     output_cfg: dict,
 ) -> None:
     if not bool(output_cfg.get("save_metrics", True)):
@@ -101,20 +118,24 @@ def save_metrics_json(
     payload = {
         "config_path": str(config_path),
         "data_file_path": data_file_path,
-        "metrics": {key: float(value) for key, value in report.items()},
+        "distance_target": distance_target,
+        "metrics": report,
     }
     metrics_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def run(config_path: str | Path) -> dict[str, float]:
+def run(config_path: str | Path) -> dict[str, float | str]:
     config = load_config(config_path)
     seed = int(config.get("seed", 1234))
+    distance_target = distance_target_from_config(config)
     set_seed(seed)
 
     dataset = load_experiment_dataset(config, seed=seed)
+    raw_distance = dataset.distance
+    target_distance = transform_distance_target(raw_distance, distance_target)
 
     pair_cfg = config["pairs"]
-    pairs = sample_pairs(dataset.features, dataset.distance, int(pair_cfg["num_pairs"]), seed=seed)
+    pairs = sample_pairs(dataset.features, target_distance, int(pair_cfg["num_pairs"]), seed=seed)
     pair_dataset = DistanceRegressionDataset(pairs)
 
     model_cfg = config["model"]
@@ -135,19 +156,27 @@ def run(config_path: str | Path) -> dict[str, float]:
 
     embeddings = encode_array(encoder, dataset.features)
     latent_distance = pairwise_euclidean(embeddings)
-    report = distance_correlations(latent_distance, dataset.distance)
-    report.update(distance_error_summary(latent_distance, dataset.distance))
+    report: dict[str, float | str] = {"distance_target": distance_target}
+    report.update(distance_correlations(latent_distance, target_distance))
+    report.update(distance_error_summary(latent_distance, target_distance))
+    if distance_target != "mismatch":
+        raw_corr = distance_correlations(latent_distance, raw_distance)
+        raw_error = distance_error_summary(latent_distance, raw_distance)
+        report["raw_mismatch_pearson"] = raw_corr["pearson"]
+        report["raw_mismatch_spearman"] = raw_corr["spearman"]
+        report["raw_mismatch_distance_mae"] = raw_error["distance_mae"]
+        report["raw_mismatch_distance_rmse"] = raw_error["distance_rmse"]
 
     k_values = evaluation_k_values(config)
     top_k = k_values[0]
     max_k = max(k_values)
     index = SklearnNeighborIndex(embeddings)
     _, retrieved = index.query(embeddings, top_k=max_k + 1)
-    add_retrieval_metrics(report, "", dataset.distance, retrieved, k_values, primary_k=top_k)
+    add_retrieval_metrics(report, "", raw_distance, retrieved, k_values, primary_k=top_k)
     add_retrieval_metrics(
         report,
         "learned",
-        dataset.distance,
+        raw_distance,
         retrieved,
         k_values,
         primary_k=top_k,
@@ -161,12 +190,12 @@ def run(config_path: str | Path) -> dict[str, float]:
         add_retrieval_metrics(
             report,
             "physical_parameter",
-            dataset.distance,
+            raw_distance,
             physical_retrieved,
             k_values,
             primary_k=top_k,
         )
-        physical_corr = distance_correlations(physical_distance, dataset.distance)
+        physical_corr = distance_correlations(physical_distance, raw_distance)
         report["physical_parameter_pearson"] = physical_corr["pearson"]
         report["physical_parameter_spearman"] = physical_corr["spearman"]
 
@@ -176,14 +205,14 @@ def run(config_path: str | Path) -> dict[str, float]:
     data_file_path = config.get("gw_data", {}).get("cache_path")
     if bool(output_cfg.get("save_plots", False)):
         plot_dir = ensure_dir(output_cfg.get("plot_dir", "outputs/smoke"))
-        scatter_fig, _ = plot_distance_scatter(latent_distance, dataset.distance)
+        scatter_fig, _ = plot_distance_scatter(latent_distance, target_distance)
         scatter_fig.savefig(plot_dir / "distance_scatter.png", dpi=150, bbox_inches="tight")
-        true_neighbors = true_neighbors_from_distance(dataset.distance)
+        true_neighbors = true_neighbors_from_distance(raw_distance)
         retrieval_fig, _ = plot_retrieval_rank_heatmap(true_neighbors, retrieved, top_k=max_k)
         retrieval_fig.savefig(plot_dir / "retrieval_heatmap.png", dpi=150, bbox_inches="tight")
         report["plots_generated"] = 2.0
     if output_cfg:
-        save_metrics_json(report, config_path, data_file_path, output_cfg)
+        save_metrics_json(report, config_path, data_file_path, distance_target, output_cfg)
     return report
 
 
@@ -193,7 +222,10 @@ def main() -> None:
     args = parser.parse_args()
     report = run(args.config)
     for key, value in report.items():
-        print(f"{key}: {value:.4f}")
+        if isinstance(value, str):
+            print(f"{key}: {value}")
+        else:
+            print(f"{key}: {value:.4f}")
 
 
 if __name__ == "__main__":

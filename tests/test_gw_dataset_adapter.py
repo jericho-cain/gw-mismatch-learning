@@ -10,6 +10,8 @@ from gw_mismatch_learning.datasets.gw import (
     load_or_create_gw_mismatch_dataset,
     save_distance_matrix_dataset,
 )
+from gw_mismatch_learning.evaluation.metric_properties import chordal_from_mismatch
+from gw_mismatch_learning.utils.io import load_arrays_hdf5
 from gw_mismatch_learning.waveforms.generate import generate_pycbc_fd_waveform
 
 
@@ -106,4 +108,76 @@ def test_training_pipeline_accepts_cached_gw_distance_dataset(tmp_path) -> None:
     assert report["candidate_reduction_factor"] == 3.0
     metrics = json.loads((output_dir / "metrics.json").read_text(encoding="utf-8"))
     assert metrics["data_file_path"] == str(cache_path)
+    assert metrics["distance_target"] == "mismatch"
+    assert metrics["metrics"]["distance_target"] == "mismatch"
     assert "physical_parameter_recall_at_2" in metrics["metrics"]
+
+
+def test_chordal_distance_target_is_applied_without_rewriting_cache(tmp_path) -> None:
+    features = np.array(
+        [[0.0, 0.0], [0.2, 0.0], [1.0, 1.0], [1.2, 1.0], [2.0, 2.0], [2.2, 2.0]],
+        dtype=np.float32,
+    )
+    raw_mismatch = np.array(
+        [
+            [0.0, 0.01, 0.2, 0.25, 0.5, 0.55],
+            [0.01, 0.0, 0.18, 0.22, 0.48, 0.52],
+            [0.2, 0.18, 0.0, 0.02, 0.21, 0.24],
+            [0.25, 0.22, 0.02, 0.0, 0.18, 0.21],
+            [0.5, 0.48, 0.21, 0.18, 0.0, 0.01],
+            [0.55, 0.52, 0.24, 0.21, 0.01, 0.0],
+        ],
+        dtype=np.float32,
+    )
+    cache_path = tmp_path / "gw_cache.h5"
+    save_distance_matrix_dataset(
+        cache_path,
+        DistanceMatrixDataset(
+            features=features,
+            distance=raw_mismatch,
+            metadata={
+                "mass_1": np.array([20.0, 21.0, 30.0, 31.0, 40.0, 41.0], dtype=np.float32),
+                "mass_2": np.array([10.0, 10.5, 15.0, 15.5, 20.0, 20.5], dtype=np.float32),
+            },
+        ),
+    )
+    output_dir = tmp_path / "outputs"
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "seed: 9",
+                "distance_target: chordal",
+                "gw_data:",
+                f"  cache_path: {cache_path}",
+                "pairs:",
+                "  num_pairs: 24",
+                "model:",
+                "  input_dim: 2",
+                "  embedding_dim: 2",
+                "  hidden_dims: [8]",
+                "training:",
+                "  epochs: 1",
+                "  batch_size: 12",
+                "  learning_rate: 0.001",
+                "evaluation:",
+                "  top_k: 2",
+                "outputs:",
+                "  save_plots: false",
+                f"  plot_dir: {output_dir}",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    report = run(config_path)
+    stored = load_arrays_hdf5(cache_path)
+    metrics = json.loads((output_dir / "metrics.json").read_text(encoding="utf-8"))
+
+    np.testing.assert_allclose(stored["distance"], raw_mismatch)
+    assert report["distance_target"] == "chordal"
+    assert metrics["distance_target"] == "chordal"
+    assert metrics["metrics"]["distance_target"] == "chordal"
+    assert "raw_mismatch_pearson" in metrics["metrics"]
+    assert "learned_recall_at_2" in metrics["metrics"]
+    assert not np.allclose(chordal_from_mismatch(raw_mismatch), raw_mismatch)

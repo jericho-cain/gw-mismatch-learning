@@ -1,0 +1,5 @@
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/scaling_validation
+bank_sizes: [128, 256, 512, 1024, 2048, 4096, 8192]
+cache_template: "data/processed/waveform_bank_{bank_size}_mismatch.h5"
+max_estimated_runtime_minutes: 180.0

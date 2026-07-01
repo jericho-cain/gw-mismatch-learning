@@ -16,7 +16,7 @@ The repository has completed its first real-waveform validation milestone. A lea
 
 In the Phase 3 validation sweep, learned latent nearest-neighbor retrieval outperformed naive Euclidean retrieval in raw `(m1, m2)` space across five random seeds, bank sizes 128 through 1024, and retrieval metrics at `K = 5, 10, 20`. This demonstrates neighborhood preservation for the tested compact nonspinning banks only. It does not establish search acceleration, production-scale performance, or generalization to spin, precession, eccentricity, other waveform families, or broader parameter spaces.
 
-See `docs/milestones/phase3.md` and `docs/phase3_validation_results.md` for the frozen results snapshot and reproducibility notes.
+See `docs/pipeline_milestones/phase3.md` and `docs/pipeline_milestones/phase3_validation_results.md` for the frozen pipeline milestone snapshot and reproducibility notes. Paper-oriented validation studies are tracked under `docs/paper_validation/`.
 
 ## What this repo is not
 

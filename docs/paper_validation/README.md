@@ -21,15 +21,15 @@ paper-validation studies.
 | --- | --- | --- |
 | Phase I: Scaling Validation | COMPLETE AND FROZEN | Does representation quality persist as waveform-bank size increases? |
 | Phase II: Stronger Physical-Coordinate Baselines | COMPLETE AND FROZEN | Does the learned representation still outperform stronger fixed physical-coordinate baselines? |
-| Phase III: Candidate Retrieval | PLANNED | Can latent retrieval support candidate selection for downstream exact matched filtering? |
+| Phase III: Candidate Retrieval | COMPLETE AND FROZEN | Can latent retrieval support candidate selection for downstream exact matched filtering? |
 
-Do not define or run the Phase III protocol from this freeze record.
+The paper-validation sequence is frozen through Phase III.
 
 ## Phase Records
 
 - [Phase I: Scaling Validation](phase_i_scaling_validation.md)
 - [Phase II: Stronger Physical-Coordinate Baselines](phase_ii_stronger_physical_baselines.md)
-- [Phase III: Candidate Retrieval](phase_iii_candidate_retrieval.md), planned only
+- [Phase III: Candidate Retrieval](phase_iii_candidate_retrieval.md)
 
 ## Frozen Conclusions
 
@@ -63,6 +63,20 @@ that the learned transformation improves matched-filter neighborhood retrieval
 beyond the Euclidean geometry already present in the physical features supplied
 to the encoder.
 
+Phase III concluded that learned latent retrieval can act as an out-of-sample
+candidate-selection front end for exact matched filtering within the tested
+nonspinning `IMRPhenomD` parameter range.
+
+For 512 out-of-sample query waveforms against the frozen 8192-template bank:
+
+- Learned latent exact-best recovery at K=10: `0.9902`
+- Learned latent exact-best recovery at K=20: `1.0000`
+- Candidate fraction at K=20: `0.002441`, or `0.244%`
+- Matched-filter evaluation reduction at K=20: `409.6x`
+- Max observed DeltaM at K=10: `2.153e-04`
+
+This is a candidate-reduction result, not a full detection-acceleration claim.
+
 ## Frozen Artifact Locations
 
 Phase I outputs:
@@ -75,6 +89,12 @@ Phase II outputs:
 
 ```text
 outputs/phase2_physical_baselines/
+```
+
+Phase III outputs:
+
+```text
+outputs/phase3_candidate_retrieval/
 ```
 
 Generated outputs are intentionally excluded from git. Their result tables are
@@ -91,4 +111,4 @@ docs/paper_validation/freeze_manifest.json
 ```
 
 Future phases must use new output directories and must not overwrite the frozen
-Phase I or Phase II output directories.
+Phase I, Phase II, or Phase III output directories.

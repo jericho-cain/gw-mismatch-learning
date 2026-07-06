@@ -1,0 +1,19 @@
+output_dir: outputs/phase3_candidate_retrieval
+bank_size: 8192
+bank_cache_path: data/processed/waveform_bank_8192_mismatch.h5
+base_config: configs/waveform_bank_small.yaml
+num_queries: 512
+query_seed: 9876
+candidate_k: [1, 2, 5, 10, 20, 50, 100, 200, 500]
+methods:
+  - name: learned_latent
+    label: "Learned latent"
+    type: learned
+  - name: total_mass_eta
+    label: "Total mass + eta"
+    type: physical
+    feature_names: ["M", "eta"]
+  - name: five_feature_input
+    label: "Five-feature input"
+    type: physical
+    feature_names: ["m1", "m2", "M", "eta", "chirp_mass"]

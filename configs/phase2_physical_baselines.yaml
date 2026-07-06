@@ -1,0 +1,23 @@
+output_dir: outputs/phase2_physical_baselines
+phase1_output_dir: outputs/scaling_validation
+bank_sizes: [1024, 2048, 4096, 8192]
+cache_template: "data/processed/waveform_bank_{bank_size}_mismatch.h5"
+k_values: [5, 10, 20]
+standardization: zscore_per_bank
+q_convention: "q = m2 / m1 with m1 >= m2, so 0 < q <= 1"
+coordinate_systems:
+  - name: component_masses
+    label: "Component masses"
+    feature_names: ["m1", "m2"]
+  - name: chirp_mass_eta
+    label: "Chirp mass + eta"
+    feature_names: ["chirp_mass", "eta"]
+  - name: total_mass_q
+    label: "Total mass + q"
+    feature_names: ["M", "q"]
+  - name: total_mass_eta
+    label: "Total mass + eta"
+    feature_names: ["M", "eta"]
+  - name: five_feature_input
+    label: "Five-feature input"
+    feature_names: ["m1", "m2", "M", "eta", "chirp_mass"]

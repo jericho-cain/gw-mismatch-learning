@@ -1,0 +1,13 @@
+output_dir: outputs/principal_k8
+documentation_dir: docs/paper_validation/principal_k8
+base_config: configs/waveform_bank_small.yaml
+seed: 1234
+latent_dim: 8
+bank_sizes: [128, 256, 512, 1024, 2048, 4096, 8192]
+cache_template: data/processed/waveform_bank_{bank_size}_mismatch.h5
+latent_sweep_reference: outputs/latent_dimension_sweep/runs/n8192_k8_seed1234/metrics.json
+phase2_config: configs/phase2_physical_baselines.yaml
+phase2_frozen_output: outputs/phase2_physical_baselines
+phase3_frozen_output: outputs/phase3_candidate_retrieval
+phase3_config: configs/phase3_candidate_retrieval.yaml
+

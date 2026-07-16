@@ -1,0 +1,11 @@
+output_dir: outputs/mds_baseline
+source_cache: data/processed/waveform_bank_8192_mismatch.h5
+dimensions: [2, 3, 4, 8, 16]
+k_values: [5, 10, 20]
+near_zero_relative_tolerance: 1.0e-10
+partial_eigensolver_tolerance: 1.0e-9
+partial_eigensolver_maxiter: 5000
+validation_bank_sizes: [128, 256, 512]
+learned_aggregate: outputs/latent_dimension_sweep/aggregate.csv
+learned_runs: outputs/latent_dimension_sweep/runs.csv
+

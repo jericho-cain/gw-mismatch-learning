@@ -1,0 +1,7 @@
+objective: seed_robustness
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/seed_robustness
+cache_template: data/processed/waveform_bank_{bank_size}_mismatch.h5
+bank_sizes: [128, 256, 512, 1024, 2048, 4096, 8192]
+seeds: [1234, 2345, 3456, 4567, 5678]
+

@@ -1,0 +1,8 @@
+objective: latent_dimension_sweep
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/latent_dimension_sweep
+cache_path: data/processed/waveform_bank_8192_mismatch.h5
+bank_size: 8192
+latent_dimensions: [2, 3, 4, 8, 16]
+seeds: [1234, 2345, 3456, 4567, 5678]
+

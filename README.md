@@ -1,91 +1,152 @@
-![logo](assets/gw_mismatch_logo.png)
+![gw-mismatch-learning logo](assets/gw_mismatch_logo.png)
 
-# gw-mismatch-learning
+# Learning the Geometry of Matched-Filter Mismatch
 
-`gw-mismatch-learning` investigates whether the geometry induced by matched filtering can be learned as a latent representation for gravitational-wave waveforms. Rather than replacing matched filtering, this project learns coordinates in which distance approximates waveform mismatch, enabling geometry-aware search, template retrieval, and hierarchical matched-filter experiments using standard GW analysis tools.
+This repository contains the code and reproducibility record for the manuscript
+*Learning the Geometry of Matched-Filter Mismatch for Gravitational-Wave Template
+Banks with Machine Learning* by Jericho Cain.
 
-## Scientific framing
+Matched filtering defines waveform similarity through the noise-weighted overlap.
+This project uses the exact pairwise matched-filter mismatch (PMM) between waveforms as
+a supervision signal for learning a low-dimensional coordinate map. Euclidean distance
+in the learned coordinates approximates PMM, allowing nearest-neighbor retrieval to
+select a small candidate set for subsequent exact matched-filter evaluation.
 
-Matched filtering defines waveform similarity through the noise-weighted overlap. Mismatch, defined as `1 - match`, induces a geometry on waveform space. This repository learns an embedding `z = f(h)` such that distances in latent space approximate the mismatch geometry.
+The learned representation does **not** replace matched filtering. Exact matched
+filtering remains the final scoring operation throughout the study.
 
-The learned geometry is intended to support nearest-neighbor retrieval, candidate reduction, and hierarchical matched-filter search. Exact matched filtering remains the final verification step.
+## Principal results
 
-## Current status
+The paper evaluates nonspinning `IMRPhenomD` waveform banks containing up to 8192
+templates. Within the waveform family and parameter range studied:
 
-The repository has completed its first real-waveform validation milestone. A learned latent representation has been trained and evaluated on nonspinning `IMRPhenomD` waveform banks using PyCBC/LALSuite matched-filter mismatch as the ground-truth distance.
+- The learned coordinates preserve global pairwise mismatch relationships and local
+  matched-filter neighborhoods.
+- Learned retrieval outperforms Euclidean retrieval in all five fixed physical
+  coordinate systems considered, including the complete five-feature encoder input.
+- For 512 previously unseen query waveforms and an 8192-template bank, 10 retrieved
+  candidates recover the exhaustive best-matching template for 99.02% of queries.
+- Twenty candidates recover the exhaustive best match for all 512 queries in the
+  reported experiment, reducing exact matched-filter evaluations by a factor of 409.6.
+- Neighborhood retrieval is close to saturation by approximately four latent
+  dimensions, while global distance preservation continues to improve at higher
+  dimensions.
+- Classical Multidimensional Scaling provides a strong deterministic in-sample
+  reference, while the learned encoder additionally supplies an explicit mapping for
+  previously unseen waveforms.
 
-In the Phase 3 validation sweep, learned latent nearest-neighbor retrieval outperformed naive Euclidean retrieval in raw `(m1, m2)` space across five random seeds, bank sizes 128 through 1024, and retrieval metrics at `K = 5, 10, 20`. This demonstrates neighborhood preservation for the tested compact nonspinning banks only. It does not establish search acceleration, production-scale performance, or generalization to spin, precession, eccentricity, other waveform families, or broader parameter spaces.
+These are candidate-reduction and representation-learning results, not measurements of
+end-to-end gravitational-wave search acceleration.
 
-See `docs/pipeline_milestones/phase3.md` and `docs/pipeline_milestones/phase3_validation_results.md` for the frozen pipeline milestone snapshot and reproducibility notes. Paper-oriented validation studies are tracked under `docs/paper_validation/`.
+## Scope and limitations
+
+The experiments are restricted to nonspinning `IMRPhenomD` waveforms sampled from the
+mass ranges defined in the committed configurations. The encoder inputs are engineered
+mass-derived features, and out-of-sample queries come from the same waveform family and
+parameter distribution as the training bank. The study does not establish performance
+for aligned spin, precession, eccentricity, other waveform approximants, or production
+search pipelines.
+
+Construction of the complete PMM matrix scales quadratically with bank size and is the
+dominant offline cost. The learned representation is used only for candidate selection;
+exact matched filtering is retained for final verification.
 
 ## Reproducing the paper
 
-The complete ordered recipe for recreating every manuscript experiment is in
-[`docs/REPRODUCING_THE_PAPER.md`](docs/REPRODUCING_THE_PAPER.md). It covers environment
-setup, data dependencies, the scaling and retrieval experiments, the five-seed
-latent-dimension sweep, the Classical MDS reference, expected output locations, and
-verification commands. Use the `v1.0.0-paper` Git tag for the submission snapshot.
+Use the annotated Git tag:
 
-## What this repo is not
+```bash
+git checkout v1.0.0-paper
+```
 
-- Not a replacement for matched filtering.
-- Not a new waveform model.
-- Not a production search pipeline yet.
+The complete ordered reproduction procedure is in
+[`docs/REPRODUCING_THE_PAPER.md`](docs/REPRODUCING_THE_PAPER.md). It covers:
+
+1. Environment creation and dependency installation.
+2. Waveform-bank scaling and pairwise mismatch construction.
+3. Physical-coordinate baselines.
+4. Out-of-sample candidate retrieval.
+5. The five-seed latent-dimension sweep.
+6. The deterministic Classical MDS reference.
+7. Tests, linting, and frozen-result checksum verification.
+
+The 8192-template PMM calculation is the dominant computation and took approximately
+2.4 hours on the machine used for the paper. Runtime will vary by hardware and software
+environment.
+
+Detailed definitions and validation records for individual experiments are maintained
+under [`docs/paper_validation/`](docs/paper_validation/README.md).
 
 ## Installation
 
-For lightweight development without full gravitational-wave dependencies:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-For GW waveform generation and overlap calculations, use an isolated environment. PyCBC/LALSuite pin parts of the scientific stack, including `scipy<1.17`, and may conflict with unrelated packages installed in a shared user Python.
+Python 3.10 or newer is required. For the gravitational-wave experiments, use an
+isolated environment because PyCBC and LALSuite constrain parts of the scientific
+Python stack:
 
 ```bash
 python -m venv .venv-gw
 source .venv-gw/bin/activate
-pip install -e ".[gw]"
+python -m pip install --upgrade pip
+python -m pip install -e ".[gw,dev]"
 ```
 
 The requirements-file equivalent is:
 
 ```bash
-pip install -r requirements-gw.txt
+python -m pip install -r requirements-gw.txt
 ```
 
-PyCBC and LALSuite installation can be platform-dependent, so the core package and synthetic smoke tests avoid importing them unless a GW-specific function is called.
-
-If `pip check` reports an unrelated `pyopenssl`/`cryptography` conflict after installing GW extras into a shared user Python, create a fresh virtual environment for this project. The repository does not use those packages directly; the conflict comes from mixing GW dependencies with other packages already present in the Python environment.
-
-## Smoke test
-
-Run the synthetic mismatch-geometry smoke test:
+Confirm the environment with:
 
 ```bash
-python scripts/train_embedding.py --config configs/training.yaml
-pytest
+python -m pytest
+python -m ruff check .
 ```
 
-The smoke path generates mock vectors, defines a toy mismatch distance, trains a small encoder to preserve pairwise distances, and evaluates retrieval metrics.
+For lightweight development without PyCBC or LALSuite:
 
-## Planned workflow
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python scripts/train_embedding.py --config configs/training.yaml
+```
 
-1. Mock geometry: synthetic vectors, toy mismatch distances, learned embeddings, retrieval evaluation.
-2. Standard waveform bank: PyCBC/LALSuite waveform generation, HDF5 storage, sampled match/mismatch computation.
-3. Retrieval experiment: encode a bank, retrieve top-K latent candidates, and compare against brute-force exact matching.
+## Repository structure
 
-## Design principles
+```text
+configs/                 Committed experiment definitions
+data/                    Generated waveform banks and mismatch caches (not tracked)
+docs/paper_validation/   Detailed validation and frozen-result records
+models/                  Generated model checkpoints (not tracked)
+notebooks/               Demonstration notebooks
+outputs/                 Generated experiment outputs (not tracked)
+scripts/                 Experiment entry points
+src/                     Reusable package implementation
+tests/                   Unit and integration tests
+```
 
-- Keep GW physics standard.
-- Keep ML contribution isolated and testable.
-- Treat exact matched filtering as ground truth.
-- Evaluate candidate reduction before claiming runtime speedup.
-- Use reproducible configs for all experiments.
-- Avoid committing large generated files.
+Large waveform banks, mismatch matrices, checkpoints, and generated figures are
+excluded from Git. Compact validation records, configurations, checksums, and the code
+needed to regenerate the paper experiments are committed. Frozen Phase I--III tables
+can be checked with:
 
-## Data policy
+```bash
+sha256sum --check docs/paper_validation/checksums.sha256
+```
 
-Generated waveform banks, mismatch matrices, trained models, and experiment outputs are intentionally excluded from git. Use `data/`, `models/`, and `outputs/` for local artifacts.
+after the corresponding outputs have been recreated.
+
+## Citation
+
+The manuscript citation and arXiv identifier will be added when the preprint becomes
+public. Until then, please cite the repository and manuscript title:
+
+```text
+Jericho Cain, "Learning the Geometry of Matched-Filter Mismatch for
+Gravitational-Wave Template Banks with Machine Learning," manuscript in preparation.
+```
+
+## License
+
+This project is released under the [MIT License](LICENSE).

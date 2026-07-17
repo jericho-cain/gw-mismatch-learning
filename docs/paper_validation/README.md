@@ -1,5 +1,9 @@
 # Paper Validation Experiments
 
+For the complete ordered command sequence that recreates the experiments reported in
+the manuscript, start with [`../REPRODUCING_THE_PAPER.md`](../REPRODUCING_THE_PAPER.md).
+The files in this directory provide the detailed validation record for each stage.
+
 This directory records the paper-oriented validation sequence that follows the
 initial pipeline milestones. Its purpose is to preserve the scientific
 validation studies intended to support the manuscript.
@@ -22,6 +26,8 @@ paper-validation studies.
 | Phase I: Scaling Validation | COMPLETE AND FROZEN | Does representation quality persist as waveform-bank size increases? |
 | Phase II: Stronger Physical-Coordinate Baselines | COMPLETE AND FROZEN | Does the learned representation still outperform stronger fixed physical-coordinate baselines? |
 | Phase III: Candidate Retrieval | COMPLETE AND FROZEN | Can latent retrieval support candidate selection for downstream exact matched filtering? |
+| Latent-dimension sweep | COMPLETE | How do global fidelity and retrieval vary across dimensions and training seeds? |
+| Classical MDS reference | COMPLETE | How does the learned encoder compare with a deterministic in-sample embedding? |
 
 The paper-validation sequence is frozen through Phase III.
 
@@ -30,6 +36,8 @@ The paper-validation sequence is frozen through Phase III.
 - [Phase I: Scaling Validation](phase_i_scaling_validation.md)
 - [Phase II: Stronger Physical-Coordinate Baselines](phase_ii_stronger_physical_baselines.md)
 - [Phase III: Candidate Retrieval](phase_iii_candidate_retrieval.md)
+- [Latent-dimension sweep](latent_dimension_sweep.md)
+- [Classical MDS reference](mds_baseline.md)
 
 ## Frozen Conclusions
 

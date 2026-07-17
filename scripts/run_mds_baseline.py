@@ -369,6 +369,140 @@ def make_plots(
     plt.close(fig)
 
 
+def make_publication_pearson_recall_figure(
+    metrics_path: Path,
+    comparisons_path: Path,
+    aggregate_path: Path,
+    png_path: Path,
+    pdf_path: Path,
+    *,
+    legend_inside_upper: bool = False,
+    mds_linestyle: str = "--",
+) -> None:
+    import matplotlib.pyplot as plt
+
+    dimensions = [2, 3, 4, 8, 16]
+    mds_rows = read_csv(metrics_path)
+    comparison_rows = read_csv(comparisons_path)
+    aggregate_rows = read_csv(aggregate_path)
+    metrics = [
+        ("pearson", "pearson"),
+        ("learned_recall_at_10", "recall_at_10"),
+    ]
+    verified: dict[str, dict[str, np.ndarray]] = {}
+    for encoder_metric, mds_metric in metrics:
+        encoder_mean = []
+        encoder_low = []
+        encoder_high = []
+        mds_values = []
+        for dimension in dimensions:
+            aggregate = next(
+                row
+                for row in aggregate_rows
+                if int(row["latent_dim"]) == dimension and row["metric"] == encoder_metric
+            )
+            comparison = next(
+                row
+                for row in comparison_rows
+                if int(row["dimension"]) == dimension and row["metric"] == encoder_metric
+            )
+            mds = next(row for row in mds_rows if int(row["dimension"]) == dimension)
+            if int(aggregate["n"]) != 5 or int(aggregate["degrees_of_freedom"]) != 4:
+                raise ValueError("Encoder aggregate is not the five-seed Student-t result")
+            checks = [
+                (float(aggregate["mean"]), float(comparison["encoder_mean"])),
+                (float(aggregate["ci95_low"]), float(comparison["encoder_ci95_low"])),
+                (float(aggregate["ci95_high"]), float(comparison["encoder_ci95_high"])),
+                (float(mds[mds_metric]), float(comparison["mds"])),
+            ]
+            if any(left != right for left, right in checks):
+                raise ValueError(
+                    f"Source disagreement for dimension={dimension}, metric={encoder_metric}"
+                )
+            encoder_mean.append(float(aggregate["mean"]))
+            encoder_low.append(float(aggregate["ci95_low"]))
+            encoder_high.append(float(aggregate["ci95_high"]))
+            mds_values.append(float(mds[mds_metric]))
+        verified[encoder_metric] = {
+            "encoder_mean": np.asarray(encoder_mean),
+            "encoder_low": np.asarray(encoder_low),
+            "encoder_high": np.asarray(encoder_high),
+            "mds": np.asarray(mds_values),
+        }
+
+    fig, (top, bottom) = plt.subplots(
+        2,
+        1,
+        figsize=(7.2, 5.4),
+        sharex=True,
+        gridspec_kw={"hspace": 0.08},
+    )
+    handles = None
+    for axis, metric, ylabel in [
+        (top, "pearson", "Pearson correlation"),
+        (bottom, "learned_recall_at_10", "Recall@10"),
+    ]:
+        values = verified[metric]
+        encoder = axis.errorbar(
+            dimensions,
+            values["encoder_mean"],
+            yerr=[
+                values["encoder_mean"] - values["encoder_low"],
+                values["encoder_high"] - values["encoder_mean"],
+            ],
+            color="tab:blue",
+            marker="o",
+            linestyle="-",
+            linewidth=1.8,
+            markersize=5.5,
+            capsize=3,
+            elinewidth=1.1,
+            label="Learned encoder",
+        )
+        mds = axis.plot(
+            dimensions,
+            values["mds"],
+            color="tab:orange",
+            marker="s",
+            linestyle=mds_linestyle,
+            linewidth=1.8,
+            markersize=5.5,
+            label="Classical MDS",
+        )[0]
+        handles = [encoder, mds]
+        axis.set_ylabel(ylabel)
+        axis.set_xlim(1.7, 16.3)
+        axis.set_xticks(dimensions)
+        axis.grid(True, alpha=0.25)
+    top.set_ylim(0.84, 1.01)
+    bottom.set_ylim(0.52, 0.90)
+    bottom.set_xlabel("Latent dimension")
+    if legend_inside_upper:
+        top.legend(
+            handles,
+            ["Learned encoder", "Classical MDS"],
+            loc="lower right",
+            frameon=False,
+        )
+        fig.subplots_adjust(top=0.98)
+    else:
+        fig.legend(
+            handles,
+            ["Learned encoder", "Classical MDS"],
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.01),
+            ncol=2,
+            frameon=False,
+        )
+        fig.subplots_adjust(top=0.90)
+    png_path.parent.mkdir(parents=True, exist_ok=True)
+    if png_path.exists() or pdf_path.exists():
+        raise FileExistsError("Publication comparison figure already exists")
+    fig.savefig(png_path, dpi=250, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
+    plt.close(fig)
+
+
 def validate_config(config: dict[str, Any]) -> None:
     for key in ["source_cache", "learned_aggregate", "learned_runs"]:
         if not Path(config[key]).is_file():

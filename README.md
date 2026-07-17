@@ -18,6 +18,14 @@ In the Phase 3 validation sweep, learned latent nearest-neighbor retrieval outpe
 
 See `docs/pipeline_milestones/phase3.md` and `docs/pipeline_milestones/phase3_validation_results.md` for the frozen pipeline milestone snapshot and reproducibility notes. Paper-oriented validation studies are tracked under `docs/paper_validation/`.
 
+## Reproducing the paper
+
+The complete ordered recipe for recreating every manuscript experiment is in
+[`docs/REPRODUCING_THE_PAPER.md`](docs/REPRODUCING_THE_PAPER.md). It covers environment
+setup, data dependencies, the scaling and retrieval experiments, the five-seed
+latent-dimension sweep, the Classical MDS reference, expected output locations, and
+verification commands. Use the `v1.0.0-paper` Git tag for the submission snapshot.
+
 ## What this repo is not
 
 - Not a replacement for matched filtering.

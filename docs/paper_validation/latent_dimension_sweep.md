@@ -2,8 +2,8 @@
 
 ## Status
 
-Implementation complete; full experiment not yet launched. This note must be updated with
-the generated numerical findings only after review of `outputs/latent_dimension_sweep/`.
+Complete. All 25 requested runs passed validation and were aggregated in
+`outputs/latent_dimension_sweep/` using exactly five runs per latent dimension.
 
 ## Design
 
@@ -27,6 +27,6 @@ Run with:
 
 ```bash
 python scripts/run_robustness_experiments.py \
-  --config configs/latent_dimension_sweep.yaml
+  --config configs/latent_dimension_sweep.yaml \
+  --resume
 ```
-

@@ -1,5 +1,3 @@
-![gw-mismatch-learning logo](assets/gw_mismatch_logo.png)
-
 # Learning the Geometry of Matched-Filter Mismatch
 
 This repository contains the code and reproducibility record for the manuscript

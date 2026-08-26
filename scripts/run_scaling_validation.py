@@ -586,9 +586,12 @@ def plot_learned_vs_physical_at_k(
             [record["bank_size"] for record in rows],
             [record[physical_metric] for record in rows],
             marker="o",
-            label="Physical",
+            label=r"Component masses $(m_1,m_2)$",
         )
         ax.set_xscale("log", base=2)
+        bank_sizes = [record["bank_size"] for record in rows]
+        ax.set_xticks(bank_sizes)
+        ax.set_xticklabels([rf"$2^{{{int(round(np.log2(size)))}}}$" for size in bank_sizes])
         ax.set_title(f"K={top_k}")
         ax.set_xlabel("Waveform bank size")
         ax.grid(True, alpha=0.3)

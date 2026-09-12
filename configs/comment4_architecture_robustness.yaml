@@ -1,0 +1,25 @@
+objective: comment4_architecture_robustness
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/comment4_architecture_robustness
+cache_path: data/processed/waveform_bank_8192_mismatch.h5
+bank_size: 8192
+seeds: [1234, 2345, 3456, 4567, 5678]
+baseline_reuse:
+  enabled: true
+  source_output_dir: outputs/latent_dimension_sweep
+architectures:
+  - name: shallow
+    label: "Shallow"
+    hidden_dims: [32]
+  - name: narrow
+    label: "Narrow"
+    hidden_dims: [16, 8]
+  - name: baseline
+    label: "Baseline"
+    hidden_dims: [32, 16]
+  - name: wide
+    label: "Wide"
+    hidden_dims: [64, 32]
+  - name: deeper
+    label: "Deeper"
+    hidden_dims: [64, 32, 16]

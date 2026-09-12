@@ -77,6 +77,29 @@ def test_specs_are_five_seeds_per_requested_setting(tmp_path: Path) -> None:
     assert sum(spec["latent_dim"] == 4 for spec in specs) == 5
 
 
+def test_comment4_specs_mark_only_baseline_for_reuse(tmp_path: Path) -> None:
+    cache = tmp_path / "bank.h5"
+    cache.touch()
+    cfg = {
+        "objective": "comment4_architecture_robustness",
+        "bank_size": 8192,
+        "cache_path": str(cache),
+        "seeds": [1234, 2345],
+        "baseline_reuse": {"enabled": True, "source_output_dir": "outputs/latent_dimension_sweep"},
+        "architectures": [
+            {"name": "shallow", "hidden_dims": [32]},
+            {"name": "baseline", "hidden_dims": [32, 16]},
+        ],
+    }
+
+    specs = build_specs(cfg)
+    validate_specs(specs)
+
+    assert len(specs) == 4
+    assert sum(bool(spec["reuse_baseline"]) for spec in specs) == 2
+    assert {tuple(spec["hidden_dims"]) for spec in specs} == {(32,), (32, 16)}
+
+
 def test_aggregation_refuses_failed_or_incomplete_groups() -> None:
     with pytest.raises(ValueError, match="failed"):
         aggregate_records([{"status": "failed", "latent_dim": 2}], "latent_dim")

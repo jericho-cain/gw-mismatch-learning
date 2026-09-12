@@ -70,7 +70,7 @@ def main() -> None:
     run_experiment(cfg, specs, overwrite=args.overwrite, resume=args.resume)
 
 
-def build_specs(cfg: dict[str, Any]) -> list[dict[str, int | str]]:
+def build_specs(cfg: dict[str, Any]) -> list[dict[str, Any]]:
     objective = str(cfg["objective"])
     seeds = [int(seed) for seed in cfg["seeds"]]
     if objective == "latent_dimension_sweep":
@@ -80,6 +80,8 @@ def build_specs(cfg: dict[str, Any]) -> list[dict[str, int | str]]:
                 "latent_dim": int(dim),
                 "seed": seed,
                 "cache_path": str(cfg["cache_path"]),
+                "variant": str(dim),
+                "variant_label": f"k={int(dim)}",
             }
             for dim in cfg["latent_dimensions"]
             for seed in seeds
@@ -91,15 +93,61 @@ def build_specs(cfg: dict[str, Any]) -> list[dict[str, int | str]]:
                 "latent_dim": 4,
                 "seed": seed,
                 "cache_path": str(cfg["cache_template"]).format(bank_size=int(size)),
+                "variant": str(size),
+                "variant_label": f"N={int(size)}",
             }
             for size in cfg["bank_sizes"]
             for seed in seeds
         ]
+    if objective == "comment4_architecture_robustness":
+        specs = []
+        for architecture in cfg["architectures"]:
+            name = str(architecture["name"])
+            for seed in seeds:
+                specs.append(
+                    {
+                        "bank_size": int(cfg["bank_size"]),
+                        "latent_dim": 4,
+                        "seed": seed,
+                        "cache_path": str(cfg["cache_path"]),
+                        "variant": name,
+                        "variant_label": str(architecture.get("label", name)),
+                        "hidden_dims": [int(dim) for dim in architecture["hidden_dims"]],
+                        "learning_rate": 0.001,
+                        "batch_size": 128,
+                        "reuse_baseline": baseline_reuse_enabled(cfg, name),
+                    }
+                )
+        return specs
+    if objective == "comment4_hyperparameter_robustness":
+        specs = []
+        for hyperparameter in cfg["hyperparameters"]:
+            name = str(hyperparameter["name"])
+            for seed in seeds:
+                specs.append(
+                    {
+                        "bank_size": int(cfg["bank_size"]),
+                        "latent_dim": 4,
+                        "seed": seed,
+                        "cache_path": str(cfg["cache_path"]),
+                        "variant": name,
+                        "variant_label": str(hyperparameter.get("label", name)),
+                        "hidden_dims": [32, 16],
+                        "learning_rate": float(hyperparameter["learning_rate"]),
+                        "batch_size": int(hyperparameter["batch_size"]),
+                        "reuse_baseline": baseline_reuse_enabled(cfg, name),
+                    }
+                )
+        return specs
     raise ValueError(f"Unknown objective: {objective}")
 
 
+def baseline_reuse_enabled(cfg: dict[str, Any], variant_name: str) -> bool:
+    return variant_name == "baseline" and bool(cfg.get("baseline_reuse", {}).get("enabled", False))
+
+
 def validate_specs(specs: list[dict[str, Any]]) -> None:
-    keys = [(x["bank_size"], x["latent_dim"], x["seed"]) for x in specs]
+    keys = [(x["bank_size"], x["latent_dim"], x["seed"], x.get("variant")) for x in specs]
     if len(keys) != len(set(keys)):
         raise ValueError("Duplicate run specification")
     missing = sorted({str(x["cache_path"]) for x in specs if not Path(x["cache_path"]).is_file()})
@@ -116,6 +164,12 @@ def experiment_config(base: dict[str, Any], spec: dict[str, Any]) -> dict[str, A
     cfg["gw_data"]["overwrite"] = False
     cfg["pairs"]["num_pairs"] = max(int(cfg["pairs"]["num_pairs"]), int(spec["bank_size"]) * 32)
     cfg["model"]["embedding_dim"] = int(spec["latent_dim"])
+    if "hidden_dims" in spec:
+        cfg["model"]["hidden_dims"] = [int(dim) for dim in spec["hidden_dims"]]
+    if "learning_rate" in spec:
+        cfg["training"]["learning_rate"] = float(spec["learning_rate"])
+    if "batch_size" in spec:
+        cfg["training"]["batch_size"] = int(spec["batch_size"])
     cfg["outputs"] = {"save_metrics": False, "save_plots": False}
     return cfg
 
@@ -133,10 +187,27 @@ def run_experiment(
     base = load_config(cfg["base_config"])
     records = []
     for spec in specs:
-        run_id = f"n{spec['bank_size']}_k{spec['latent_dim']}_seed{spec['seed']}"
+        run_id = run_id_for_spec(spec, cfg["objective"])
         run_dir = output / "runs" / run_id
         metrics_path = run_dir / "metrics.json"
         full = experiment_config(base, spec)
+        if bool(spec.get("reuse_baseline", False)):
+            if metrics_path.exists() and not (overwrite or resume):
+                raise FileExistsError(
+                    f"Completed run exists: {run_dir}; pass --resume or --overwrite explicitly"
+                )
+            run_dir.mkdir(parents=True, exist_ok=True)
+            config_text = yaml.safe_dump(full, sort_keys=False)
+            (run_dir / "config.yaml").write_text(config_text, encoding="utf-8")
+            record = load_reused_baseline_record(cfg, full, spec)
+            record.update(
+                {"run_id": run_id, "git_commit": git_commit(), "seed_policy": "shared_global_seed"}
+            )
+            record["config_sha256"] = digest_bytes(config_text.encode("utf-8"))
+            write_json(metrics_path, record, refuse=False)
+            records.append(record)
+            print(f"Reused validated baseline for {run_id}")
+            continue
         if run_dir.exists() and resume:
             valid, reason, existing = validate_existing_run(run_dir, full, spec)
             if valid:
@@ -190,6 +261,32 @@ def run_experiment(
     write_json(output / "frozen_manifest_after.json", after, refuse=False)
     if before != after:
         raise RuntimeError("Frozen-output manifest changed during robustness experiment")
+
+
+def run_id_for_spec(spec: dict[str, Any], objective: str) -> str:
+    if objective in {"comment4_architecture_robustness", "comment4_hyperparameter_robustness"}:
+        return f"n{spec['bank_size']}_{spec['variant']}_seed{spec['seed']}"
+    return f"n{spec['bank_size']}_k{spec['latent_dim']}_seed{spec['seed']}"
+
+
+def load_reused_baseline_record(
+    cfg: dict[str, Any],
+    expected_config: dict[str, Any],
+    spec: dict[str, Any],
+) -> dict[str, Any]:
+    source_dir = Path(cfg["baseline_reuse"]["source_output_dir"])
+    source_run_dir = source_dir / "runs" / f"n{spec['bank_size']}_k4_seed{spec['seed']}"
+    valid, reason, source = validate_existing_run(source_run_dir, expected_config, spec)
+    if not valid:
+        raise RuntimeError(f"Cannot reuse baseline from {source_run_dir}: {reason}")
+    record = {
+        **source,
+        **spec,
+        "status": "completed",
+        "reused_from": str(source_run_dir),
+        "reuse_reason": "identical baseline configuration from latent_dimension_sweep",
+    }
+    return record
 
 
 def validate_existing_run(
@@ -277,8 +374,8 @@ def aggregate_records(records: list[dict[str, Any]], group: str) -> list[dict[st
     if any(r.get("status") != "completed" for r in records):
         raise ValueError("Refusing to aggregate missing or failed runs")
     rows = []
-    for value in sorted({int(r[group]) for r in records}):
-        selected = [r for r in records if int(r[group]) == value]
+    for value in sorted({r[group] for r in records}, key=sort_group_value):
+        selected = [r for r in records if r[group] == value]
         if len(selected) != 5:
             raise ValueError(f"Expected exactly five runs for {group}={value}, got {len(selected)}")
         for metric in METRICS:
@@ -287,6 +384,7 @@ def aggregate_records(records: list[dict[str, Any]], group: str) -> list[dict[st
             rows.append(
                 {
                     group: value,
+                    "label": str(selected[0].get("variant_label", value)),
                     "metric": metric,
                     "n": 5,
                     "degrees_of_freedom": 4,
@@ -297,6 +395,24 @@ def aggregate_records(records: list[dict[str, Any]], group: str) -> list[dict[st
                 }
             )
     return rows
+
+
+def sort_group_value(value: Any) -> tuple[int, str]:
+    if isinstance(value, int):
+        return (value, "")
+    text = str(value)
+    order = {
+        "shallow": 0,
+        "narrow": 1,
+        "baseline": 2,
+        "wide": 3,
+        "deeper": 4,
+        "lower_lr": 0,
+        "higher_lr": 3,
+        "smaller_batch": 4,
+        "larger_batch": 5,
+    }
+    return (order.get(text, 99), text)
 
 
 def student_t_summary(values: list[float]) -> tuple[float, float, float, float]:
@@ -310,7 +426,12 @@ def student_t_summary(values: list[float]) -> tuple[float, float, float, float]:
 
 
 def require_complete(records: list[dict[str, Any]], cfg: dict[str, Any]) -> None:
-    expected = len(cfg["seeds"]) * len(cfg.get("latent_dimensions", cfg.get("bank_sizes", [])))
+    expected = len(cfg["seeds"]) * len(
+        cfg.get(
+            "latent_dimensions",
+            cfg.get("bank_sizes", cfg.get("architectures", cfg.get("hyperparameters", []))),
+        )
+    )
     if len(records) != expected or any(r.get("status") != "completed" for r in records):
         raise RuntimeError("Not all requested runs completed; no aggregate results were produced")
     if cfg["objective"] == "seed_robustness":
@@ -340,7 +461,14 @@ def verify_frozen_seed_reproduction(records: list[dict[str, Any]]) -> None:
 
 
 def group_key(cfg: dict[str, Any]) -> str:
-    return "latent_dim" if cfg["objective"] == "latent_dimension_sweep" else "bank_size"
+    if cfg["objective"] == "latent_dimension_sweep":
+        return "latent_dim"
+    if cfg["objective"] in {
+        "comment4_architecture_robustness",
+        "comment4_hyperparameter_robustness",
+    }:
+        return "variant"
+    return "bank_size"
 
 
 def estimate_runtime(cfg: dict[str, Any], run_count: int) -> float:
@@ -348,6 +476,14 @@ def estimate_runtime(cfg: dict[str, Any], run_count: int) -> float:
     per_run = float(frozen["training_time_seconds"]) + float(frozen["evaluation_time_seconds"])
     if cfg["objective"] == "latent_dimension_sweep":
         return per_run * run_count
+    if cfg["objective"] in {
+        "comment4_architecture_robustness",
+        "comment4_hyperparameter_robustness",
+    }:
+        reused = (
+            len(cfg["seeds"]) if bool(cfg.get("baseline_reuse", {}).get("enabled", False)) else 0
+        )
+        return per_run * (run_count - reused)
     total = 0.0
     for size in cfg["bank_sizes"]:
         row = json.loads(
@@ -390,7 +526,7 @@ def make_plots(output: Path, rows: list[dict[str, Any]], group: str, objective: 
         fig, ax = plt.subplots(figsize=(6.5, 4))
         for metric in metrics:
             selected = sorted([r for r in rows if r["metric"] == metric], key=lambda r: r[group])
-            x = [r[group] for r in selected]
+            x = list(range(len(selected))) if group == "variant" else [r[group] for r in selected]
             y = [r["mean"] for r in selected]
             ax.errorbar(
                 x,
@@ -403,7 +539,14 @@ def make_plots(output: Path, rows: list[dict[str, Any]], group: str, objective: 
                 capsize=3,
                 label=metric.replace("learned_", "").replace("_", " "),
             )
-        ax.set_xlabel("Latent dimension" if group == "latent_dim" else "Waveform bank size")
+        if group == "latent_dim":
+            ax.set_xlabel("Latent dimension")
+        elif group == "variant":
+            ax.set_xlabel("Configuration")
+            ax.set_xticks(list(range(len(selected))))
+            ax.set_xticklabels([str(r["label"]) for r in selected], rotation=20, ha="right")
+        else:
+            ax.set_xlabel("Waveform bank size")
         if group == "bank_size":
             ax.set_xscale("log", base=2)
         ax.set_ylabel(ylabel)

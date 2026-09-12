@@ -1,0 +1,30 @@
+objective: comment4_hyperparameter_robustness
+base_config: configs/waveform_bank_small.yaml
+output_dir: outputs/comment4_hyperparameter_robustness
+cache_path: data/processed/waveform_bank_8192_mismatch.h5
+bank_size: 8192
+seeds: [1234, 2345, 3456, 4567, 5678]
+baseline_reuse:
+  enabled: true
+  source_output_dir: outputs/latent_dimension_sweep
+hyperparameters:
+  - name: lower_lr
+    label: "Lower learning rate"
+    learning_rate: 0.0003
+    batch_size: 128
+  - name: baseline
+    label: "Baseline"
+    learning_rate: 0.001
+    batch_size: 128
+  - name: higher_lr
+    label: "Higher learning rate"
+    learning_rate: 0.003
+    batch_size: 128
+  - name: smaller_batch
+    label: "Smaller batch"
+    learning_rate: 0.001
+    batch_size: 64
+  - name: larger_batch
+    label: "Larger batch"
+    learning_rate: 0.001
+    batch_size: 256
